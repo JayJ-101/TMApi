@@ -17,24 +17,32 @@ namespace TMApi.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetTasks()
+        public async Task<IActionResult> GetTasks()
         {
-            var tasks = _context.TaskItems.ToList();
-            return Ok(tasks);
+            var task = await _context.TaskItems.
+                AsNoTracking().
+                ToListAsync();
+
+            return Ok(task);
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateTask(TaskItem task)
+        public async Task<IActionResult> CreateTask(CreateTaskDto taskDto)
         {
-            task.CreatedAt = DateTime.UtcNow;
-            task.IsCompleted = false;
+            var task = new TaskItem
+            {
+                Title = taskDto.Title,
+                Description = taskDto.Description,
+                CreatedAt = DateTime.UtcNow,
+                IsCompleted = false
+            };
 
             _context.TaskItems.Add(task);
 
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(
-                nameof(GetTasks),
+                nameof(GetTask),
                 new { id = task.Id },
                 task);
 
@@ -43,31 +51,31 @@ namespace TMApi.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTask(int id)
         {
-            var task = await _context.TaskItems.FindAsync(id);
+            var task = await _context.TaskItems
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null)
                 return NotFound();
+
             return Ok(task);
         }
         
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTask(int id, TaskItem task)
+        public async Task<IActionResult> UpdateTask(int id, UpdateTaskDto dto)
         {
-            if (id != task.Id)
-                return BadRequest();
+            var task = await _context.TaskItems.FindAsync(id);
 
-            var existingTask = await _context.TaskItems.FindAsync(id);
-
-            if (existingTask == null)
+            if (task == null)
                 return NotFound();
 
-            existingTask.Title = task.Title;
-            existingTask.Description = task.Description;
-            existingTask.IsCompleted = task.IsCompleted;
+            task.Title = dto.Title;
+            task.Description = dto.Description;
+            task.IsCompleted = dto.IsCompleted;
 
             await _context.SaveChangesAsync();
 
-            return Ok(existingTask);
+            return Ok(task);
         }
 
         [HttpDelete("{id}")]
