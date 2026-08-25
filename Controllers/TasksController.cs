@@ -34,12 +34,56 @@ namespace TMApi.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(
-                nameof(GetTasks), 
+                nameof(GetTasks),
                 new { id = task.Id },
                 task);
 
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetTask(int id)
+        {
+            var task = await _context.TaskItems.FindAsync(id);
+
+            if (task == null)
+                return NotFound();
+            return Ok(task);
+        }
         
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTask(int id, TaskItem task)
+        {
+            if (id != task.Id)
+                return BadRequest();
+
+            var existingTask = await _context.TaskItems.FindAsync(id);
+
+            if (existingTask == null)
+                return NotFound();
+
+            existingTask.Title = task.Title;
+            existingTask.Description = task.Description;
+            existingTask.IsCompleted = task.IsCompleted;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(existingTask);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTask(int id)
+        {
+            var task = await _context.TaskItems.FindAsync(id);
+
+            if (task == null)
+                return NotFound();
+
+
+            _context.TaskItems.Remove(task);
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 }
