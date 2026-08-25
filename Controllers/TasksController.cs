@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using TMApi.Data;
 using TMApi.Models;
+using TMApi.Services;
 
 namespace TMApi.Controllers
 {
@@ -9,71 +10,52 @@ namespace TMApi.Controllers
     [Route("api/[controller]")] 
     public class TasksController    : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ITaskService _taskService;
 
-        public TasksController(AppDbContext context)
+        public TasksController(ITaskService taskService)
         {
-            _context = context;
+             _taskService = taskService;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetTasks()
         {
-            var task = await _context.TaskItems.
-                AsNoTracking().
-                ToListAsync();
+            var tasks = await _taskService.GetTasksAsync();
 
-            return Ok(task);
+            return Ok(tasks);
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateTask(CreateTaskDto taskDto)
+        public async Task<IActionResult> CreateTask(CreateTaskDto dto)
         {
-            var task = new TaskItem
-            {
-                Title = taskDto.Title,
-                Description = taskDto.Description,
-                CreatedAt = DateTime.UtcNow,
-                IsCompleted = false
-            };
-
-            _context.TaskItems.Add(task);
-
-            await _context.SaveChangesAsync();
+            var task = await _taskService.CreateTaskAsync(dto);
 
             return CreatedAtAction(
                 nameof(GetTask),
                 new { id = task.Id },
                 task);
-
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTask(int id)
         {
-            var task = await _context.TaskItems
-                .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == id);
+            var task = await _taskService.GetTaskAsync(id);
 
             if (task == null)
                 return NotFound();
-
+            
             return Ok(task);
         }
         
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTask(int id, UpdateTaskDto dto)
         {
-            var task = await _context.TaskItems.FindAsync(id);
+            var task = await _taskService.UpdateTaskAsync(
+                 id,
+                 dto);
 
             if (task == null)
                 return NotFound();
-
-            task.Title = dto.Title;
-            task.Description = dto.Description;
-            task.IsCompleted = dto.IsCompleted;
-
-            await _context.SaveChangesAsync();
 
             return Ok(task);
         }
@@ -81,15 +63,10 @@ namespace TMApi.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTask(int id)
         {
-            var task = await _context.TaskItems.FindAsync(id);
+            var deleted = await _taskService.DeleteTaskAsync(id);
 
-            if (task == null)
+            if (!deleted)
                 return NotFound();
-
-
-            _context.TaskItems.Remove(task);
-
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
