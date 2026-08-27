@@ -1,9 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TMApi.Models;
 
 namespace TMApi.Data
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options)
            : base(options)
@@ -11,5 +12,6 @@ namespace TMApi.Data
         }
 
         public DbSet<TaskItem> TaskItems { get; set; }
+
     }
 }

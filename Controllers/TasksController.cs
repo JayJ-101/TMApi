@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TMApi.Data;
 using TMApi.Models;
@@ -8,6 +9,7 @@ namespace TMApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")] 
+    [Authorize]
     public class TasksController    : ControllerBase
     {
         private readonly ITaskService _taskService;
