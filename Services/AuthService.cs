@@ -35,14 +35,19 @@ namespace TMApi.Services
                 var result = await _userManager.CreateAsync(user, dto.Password);
 
                 if (result.Succeeded)
+                {
                     _logger.LogInformation("Registration succeeded for user: {Username}.", dto.Username);
+                    await _userManager.AddToRoleAsync(user, "user");
+                    return result;
+                }
                 else
                 {
                     _logger.LogWarning("Registration failed for user: {Username}. Errors: {Errors}",
-                        dto.Username, 
+                        dto.Username,
                         string.Join(", ", result.Errors.Select(e => e.Description)));
+                    return result;
                 }
-                return result;
+                
             }
             catch (Exception ex)
             {
@@ -72,6 +77,7 @@ namespace TMApi.Services
                     return "Invalid username or password.";
                 }
 
+                var roles = await _userManager.GetRolesAsync(user);
                 await _userManager.ResetAccessFailedCountAsync(user);
 
                 // Generate a token 
@@ -83,6 +89,12 @@ namespace TMApi.Services
 
                     new Claim(ClaimTypes.Email, user.Email ?? string.Empty)
                 };
+                
+                //Add roles 
+                foreach (var role in roles)
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, role));
+                }
 
                 var key = _configuration["JWT:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
 
@@ -115,5 +127,85 @@ namespace TMApi.Services
             }
 
         }
+
+
+        public async Task<IdentityResult> ChangeUserRoleAsync(string userId, string role)
+        {
+            try
+            {
+                _logger.LogInformation("Attempting to change role for user ID: {UserId} to role: {Role}.", userId, role);
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user == null)
+                {
+                    _logger.LogWarning("Change role failed: User not found with ID: {UserId}", userId);
+                    return IdentityResult.Failed(new IdentityError { Description = "User not found." });
+                }
+                
+               if (!await _userManager.IsInRoleAsync(user, role))
+                {
+                    var currentRoles = await _userManager.GetRolesAsync(user);
+                    if (currentRoles.Any())
+                    {
+                        var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                        if (!removeResult.Succeeded)
+                        {
+                            _logger.LogWarning("Failed to remove user ID: {UserId} from current roles: {Roles}. Errors: {Errors}",
+                                userId,
+                                string.Join(", ", currentRoles),
+                                string.Join(", ", removeResult.Errors.Select(e => e.Description)));
+                            return removeResult;
+                        }
+                    }
+                }
+
+               _logger.LogInformation("Role changed succeffully for user ID: {UserId}, New role: {Role}.", userId, role);
+                return await _userManager.AddToRoleAsync(user, role);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while changing role for user ID: {UserId}.", userId);
+                return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred while changing the user's role." });
+            }
+        }
+
+
+        public async Task<IEnumerable<UserListDto>> GetUsersAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Retrieving users for administration.");
+
+                var users = _userManager.Users.ToList();
+
+                var userList = new List<UserListDto>();
+
+                foreach (var user in users)
+                {
+                    var roles = await _userManager.GetRolesAsync(user);
+
+                    userList.Add(new UserListDto
+                    {
+                        Id = user.Id,
+                        Username = user.UserName,
+                        Email = user.Email,
+                        FullName = user.FullName,
+                        IsActive = user.IsActive,
+                        Roles = roles
+                    });
+                }
+
+                return userList;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "An error occurred while retrieving users.");
+
+                throw;
+            }
+        }
+
     }   
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TMApi.Models;
 using TMApi.Services;
@@ -60,7 +61,34 @@ namespace TMApi.Controllers
             
             _logger.LogInformation("Login successful for user: {Username}", dto.Username);
             return Ok(new { Token = token });
-        }   
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("user/{userId}/role")]
+        public async Task<IActionResult> ChangeUserRole(string userId, [FromBody] string role)
+        {
+            _logger.LogInformation("Change role request received for userId: {UserId} to role: {Role}", userId, role);
+            var result = await _authService.ChangeUserRoleAsync(userId, role);
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Change role failed for userId: {UserId}. Errors: {Errors}",
+                    userId, string.Join(", ", result.Errors.Select(e => e.Description)));
+                return BadRequest(new { Errors = result.Errors.Select(e => e.Description) });
+            }
+            _logger.LogInformation("Role changed successfully for userId: {UserId} to role: {Role}", userId, role);
+            return Ok(new { Message = "User role changed successfully" });
+        }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers()
+        {
+            _logger.LogInformation("Get users request received.");
+            var users = await _authService.GetUsersAsync();
+            _logger.LogInformation("Retrieved {Count} users.", users.Count());
+            return Ok(users);
+        }
 
     }
 }
