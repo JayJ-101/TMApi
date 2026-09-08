@@ -1,0 +1,31 @@
+name: TMApi CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore TMApi.sln
+
+      - name: Build solution
+        run: dotnet build TMApi.sln --no-restore --configuration Release
+
+      - name: Run tests
+        run: dotnet test TMApi.sln --no-build --configuration Release
