@@ -29,3 +29,12 @@ jobs:
 
       - name: Run tests
         run: dotnet test TMApi.sln --no-build --configuration Release
+
+      - name: Publish API
+        run: dotnet publish TMApi/TMApi.csproj --configuration Release --output ./publish
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMApi
+          path: ./publish
