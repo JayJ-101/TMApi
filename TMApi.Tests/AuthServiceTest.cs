@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -356,6 +357,137 @@ namespace TMApi.Tests
             Assert.Equal("Agent", roleClaim.Value);
         }
 
+
+        [Fact]
+        public async Task ChangeUserStatusAsync_UserNotfound_ReturnFailure()
+        {
+            //Arrange 
+            var userId = "does-not-exist";
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync(userId))
+                .ReturnsAsync((ApplicationUser?)null);
+
+            //Act
+            var result = await _authService.ChangeUserStatusAsync(userId, false);
+
+            //Assert
+            Assert.False(result.Succeeded);
+            Assert.Contains(result.Errors, e => e.Description == "User not found.");
+
+        }
+
+        [Fact]
+        public async Task ChangeUserStatusAsync_UserExists_ActivateUser()
+        {
+            var user = new ApplicationUser
+            {
+                Id = "123",
+                UserName = "john@example.com",
+                Email ="john@example.com",
+                IsActive = false
+            };
+
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync(user.Id))
+                .ReturnsAsync(user);
+
+            _userManagerMock
+                .Setup(x => x.UpdateAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
+
+            //Act
+            var result = await _authService.ChangeUserStatusAsync(user.Id, true);
+
+            //Assert
+            Assert.True(result.Succeeded);
+            Assert.True(user.IsActive);
+
+            _userManagerMock.Verify(x => x.UpdateAsync(user), Times.Once);
+
+
+        }
+
+        [Fact]
+        public async Task ChangeUserStatusAsync_UserExists_DeactivatesUser()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                Id = "123",
+                UserName = "john@example.com",
+                Email = "john@example.com",
+                IsActive = true
+            };
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync(user.Id))
+                .ReturnsAsync(user);
+
+            _userManagerMock
+                .Setup(x => x.UpdateAsync(user))
+                .ReturnsAsync(IdentityResult.Success);
+
+            // Act
+            var result = await _authService.ChangeUserStatusAsync(
+                user.Id,
+                false);
+
+            // Assert
+            Assert.True(result.Succeeded);
+            Assert.False(user.IsActive);
+
+            _userManagerMock.Verify(
+                x => x.UpdateAsync(user),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task ChangeUserStatusAsync_UpdateFails_ReturnsFailure()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                Id = "123",
+                UserName = "john@example.com",
+                Email = "john@example.com",
+                IsActive = true
+            };
+
+            var identityError = new IdentityError
+            {
+                Description = "Failed to update user."
+            };
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync(user.Id))
+                .ReturnsAsync(user);
+
+            _userManagerMock
+                .Setup(x => x.UpdateAsync(user))
+                .ReturnsAsync(
+                    IdentityResult.Failed(identityError));
+
+            // Act
+            var result = await _authService.ChangeUserStatusAsync(
+                user.Id,
+                false);
+
+            // Assert
+            Assert.False(result.Succeeded);
+            Assert.Contains(
+                result.Errors,
+                e => e.Description == "Failed to update user.");
+
+            Assert.False(user.IsActive);
+        }
+
+
+
+
+        #region Private Methods
+
         private void SetupJwtConfiguration()
         {
             _configurationMock
@@ -375,6 +507,7 @@ namespace TMApi.Tests
                 .Setup(x => x["JWT:ExpiryMinutes"])
                 .Returns("60");
         }
+        #endregion
 
     }
 }
