@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using TMApi.Models;
 using TMApi.Services;
 
@@ -90,5 +91,21 @@ namespace TMApi.Controllers
             return Ok(users);
         }
 
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("user/{userId}/status")]
+        public async Task<IActionResult> ChangeUserStatus(string userId, [FromBody] bool isActive)
+        {
+            _logger.LogInformation("Change status request received for userId: {UserId} to isActive: {IsActive}", userId, isActive);
+            var result = await _authService.ChangeUserStatusAsync(userId, isActive);
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Change status failed for userId: {UserId}. Errors: {Errors}",
+                    userId, string.Join(", ", result.Errors.Select(e => e.Description)));
+                return BadRequest(new { Errors = result.Errors.Select(e => e.Description) });
+            }
+            _logger.LogInformation("Status changed successfully for userId: {UserId} to isActive: {IsActive}", userId, isActive);
+            return Ok(new { Message = "User status changed successfully" });
+        }
     }
 }

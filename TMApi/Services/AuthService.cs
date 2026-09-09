@@ -207,5 +207,42 @@ namespace TMApi.Services
             }
         }
 
+
+        public async Task<IdentityResult> ChangeUserStatusAsync(string userId, bool isActive)
+        {
+            try
+            {
+                _logger.LogInformation("attempting to change status for user ID:{UserId} to IsActive: {IsActive}.", userId, isActive);
+
+                var user = await _userManager.FindByIdAsync(userId);
+
+                if(user == null)
+                {
+                    _logger.LogWarning("Change status failed: User not found with ID: {UserID}", userId);
+                    return IdentityResult.Failed(new IdentityError { Description = "User not found." });
+                }
+
+                user.IsActive = isActive;
+
+                var result = await _userManager.UpdateAsync(user);
+
+                if (result.Succeeded)
+                {
+                    _logger.LogInformation("User ID: {UserId} status changed successfully to IsActive: {IsActive}.", userId, isActive);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to change status for User ID: {UserId}. Errors: {Errors}",
+                        userId, 
+                        string.Join(", ", result.Errors.Select(e => e.Description)));
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while changing status for user ID: {UserId}.", userId);
+                return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred while changing the user's status." });
+            }
+        }
     }   
 }

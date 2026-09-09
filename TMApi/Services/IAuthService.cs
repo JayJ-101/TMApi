@@ -9,5 +9,6 @@ namespace TMApi.Services
         Task<string?> LoginAsync(LoginDto dto);
         Task<IdentityResult> ChangeUserRoleAsync(string userId, string role);
         Task<IEnumerable<UserListDto>> GetUsersAsync();
+        Task<IdentityResult> ChangeUserStatusAsync(string userId, bool isActive);
     }
 }
