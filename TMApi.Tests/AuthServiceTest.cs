@@ -483,6 +483,44 @@ namespace TMApi.Tests
             Assert.False(user.IsActive);
         }
 
+        [Fact]
+        public async Task LoginAsync_InactiveUser_ReturnsInvalidCredentials()
+        {
+            // Arrange
+            var user = new ApplicationUser
+            {
+                Id = "123",
+                UserName = "john@example.com",
+                Email = "john@example.com",
+                IsActive = false
+            };
+
+            var loginDto = new LoginDto
+            {
+                Username = "john@example.com",
+                Password = "Sinaye@123"
+            };
+
+            _userManagerMock
+                .Setup(x => x.FindByNameAsync(loginDto.Username))
+                .ReturnsAsync(user);
+
+            // Act
+            var result = await _authService.LoginAsync(loginDto);
+
+            // Assert
+            Assert.Equal(
+                "Invalid username or password.",
+                result);
+
+
+            _userManagerMock.Verify(
+                x => x.CheckPasswordAsync(
+                    It.IsAny<ApplicationUser>(),
+                    It.IsAny<string>()),
+                Times.Never);
+        }
+
 
 
 

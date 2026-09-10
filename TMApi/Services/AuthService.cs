@@ -70,6 +70,12 @@ namespace TMApi.Services
                     return "Invalid username or password.";
                 }
 
+                if (!user.IsActive)
+                {
+                    _logger.LogWarning("Login failed for inactive user: {Username}.",dto.Username);
+                    return "Invalid username or password.";
+                }
+
                 var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
                 if (!isPasswordValid)
                 {
