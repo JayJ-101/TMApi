@@ -10,5 +10,8 @@ namespace TMApi.Services
         Task<IdentityResult> ChangeUserRoleAsync(string userId, string role);
         Task<IEnumerable<UserListDto>> GetUsersAsync();
         Task<IdentityResult> ChangeUserStatusAsync(string userId, bool isActive);
+
+        Task<IdentityResult> ForgotPasswordAsync(string email);
+        Task<IdentityResult> ResetPasswordAsync(ResetPasswordDto dto);
     }
 }

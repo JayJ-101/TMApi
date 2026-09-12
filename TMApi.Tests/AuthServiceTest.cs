@@ -20,6 +20,8 @@ namespace TMApi.Tests
         private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
         private readonly Mock<IConfiguration> _configurationMock;
         private readonly Mock<ILogger<AuthService>> _loggerMock;
+        private readonly Mock<IEmailService> _emailServiceMock;
+
 
         private readonly AuthService _authService;
 
@@ -41,11 +43,13 @@ namespace TMApi.Tests
 
             _configurationMock = new Mock<IConfiguration>();
             _loggerMock = new Mock<ILogger<AuthService>>();
+            _emailServiceMock = new Mock<IEmailService>();
 
             _authService = new AuthService(
                 _userManagerMock.Object,
                 _configurationMock.Object,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                _emailServiceMock.Object);
         }
 
         [Fact]

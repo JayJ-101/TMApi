@@ -114,7 +114,7 @@ builder.Services.AddAuthentication(
 
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Authentication & Authorization
 builder.Services.AddAuthentication();

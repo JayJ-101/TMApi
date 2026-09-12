@@ -7,18 +7,23 @@ using TMApi.Models;
 
 namespace TMApi.Services
 {
-    public class AuthService :IAuthService
+    public class AuthService : IAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
+        private readonly IEmailService _emailService;   
 
-        public AuthService(UserManager<ApplicationUser> userManager, 
-            IConfiguration configuration, ILogger<AuthService> logger)
+        public AuthService(
+            UserManager<ApplicationUser> userManager,
+            IConfiguration configuration, 
+            ILogger<AuthService> logger, 
+            IEmailService emailService)
         {
             _userManager = userManager;
             _configuration = configuration;
             _logger = logger;
+            _emailService = emailService;
         }
         public async Task<IdentityResult> RegisterAsync(RegisterDto dto)
         {
@@ -31,7 +36,7 @@ namespace TMApi.Services
                     UserName = dto.Username,
                     Email = dto.Email,
                 };
-                
+
                 var result = await _userManager.CreateAsync(user, dto.Password);
 
                 if (result.Succeeded)
@@ -47,11 +52,11 @@ namespace TMApi.Services
                         string.Join(", ", result.Errors.Select(e => e.Description)));
                     return result;
                 }
-                
+
             }
             catch (Exception ex)
             {
-              _logger.LogError(ex, "An error occurred during registration for user: {Username}.", dto.Username);
+                _logger.LogError(ex, "An error occurred during registration for user: {Username}.", dto.Username);
                 return IdentityResult.Failed(
                     new IdentityError { Description = "An unexpected error occurred during registration." });
             }
@@ -72,7 +77,7 @@ namespace TMApi.Services
 
                 if (!user.IsActive)
                 {
-                    _logger.LogWarning("Login failed for inactive user: {Username}.",dto.Username);
+                    _logger.LogWarning("Login failed for inactive user: {Username}.", dto.Username);
                     return "Invalid username or password.";
                 }
 
@@ -95,7 +100,7 @@ namespace TMApi.Services
 
                     new Claim(ClaimTypes.Email, user.Email ?? string.Empty)
                 };
-                
+
                 //Add roles 
                 foreach (var role in roles)
                 {
@@ -146,8 +151,8 @@ namespace TMApi.Services
                     _logger.LogWarning("Change role failed: User not found with ID: {UserId}", userId);
                     return IdentityResult.Failed(new IdentityError { Description = "User not found." });
                 }
-                
-               if (!await _userManager.IsInRoleAsync(user, role))
+
+                if (!await _userManager.IsInRoleAsync(user, role))
                 {
                     var currentRoles = await _userManager.GetRolesAsync(user);
                     if (currentRoles.Any())
@@ -164,7 +169,7 @@ namespace TMApi.Services
                     }
                 }
 
-               _logger.LogInformation("Role changed succeffully for user ID: {UserId}, New role: {Role}.", userId, role);
+                _logger.LogInformation("Role changed succeffully for user ID: {UserId}, New role: {Role}.", userId, role);
                 return await _userManager.AddToRoleAsync(user, role);
 
             }
@@ -222,7 +227,7 @@ namespace TMApi.Services
 
                 var user = await _userManager.FindByIdAsync(userId);
 
-                if(user == null)
+                if (user == null)
                 {
                     _logger.LogWarning("Change status failed: User not found with ID: {UserID}", userId);
                     return IdentityResult.Failed(new IdentityError { Description = "User not found." });
@@ -239,7 +244,7 @@ namespace TMApi.Services
                 else
                 {
                     _logger.LogWarning("Failed to change status for User ID: {UserId}. Errors: {Errors}",
-                        userId, 
+                        userId,
                         string.Join(", ", result.Errors.Select(e => e.Description)));
                 }
                 return result;
@@ -250,5 +255,87 @@ namespace TMApi.Services
                 return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred while changing the user's status." });
             }
         }
-    }   
+
+
+        public async Task<IdentityResult> ForgotPasswordAsync(string email)
+        {
+            try
+            {
+                _logger.LogInformation("Processing forgot password request for email: {Email}.", email);
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user == null)
+                {
+                    _logger.LogWarning("Forgot password failed: User not found with email: {Email}", email);
+                    return IdentityResult.Failed(new IdentityError { Description = "User not found." });
+                }
+
+                if(!user.IsActive)
+                {
+                    _logger.LogWarning("Forgot password failed: User with email: {Email} is inactive.", email);
+                    return IdentityResult.Failed(new IdentityError { Description = "User account is inactive." });
+                }
+
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+                var body = $"""
+                    A password reset was requested for your Task Manager account.
+                    Your password reset token is:
+                    {token}
+                    Use link to create a new password.
+                    If you did not request a password reset, you can ignore this email.
+                    """;
+
+                await _emailService.SendEmailAsync(user.Email!, "Task Manager Password Reset",body);
+
+                    _logger.LogInformation(
+                    "Password reset email sent successfully to: {Email}.",email);
+
+                return IdentityResult.Success;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while processing forgot password for email: {Email}.", email);
+                return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred." });
+            }
+        }
+        public async Task<IdentityResult> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            try
+            {
+                _logger.LogInformation("Attempting to reset password for email: {Email}.", dto.Email);
+
+                var user = await _userManager.FindByEmailAsync(dto.Email);
+                if (user == null)
+                {
+                    _logger.LogWarning("Reset password failed: User not found with email: {Email}", dto.Email);
+                    return IdentityResult.Failed(new IdentityError { Description = "User not found." });
+                }
+
+                if(!user.IsActive)
+                {
+                    _logger.LogWarning("Reset password failed: User with email: {Email} is inactive.", dto.Email);
+                    return IdentityResult.Failed(new IdentityError { Description = "User account is inactive." });
+                }
+
+                var result = await _userManager.ResetPasswordAsync(user, dto.Token, dto.NewPassword);
+                if (result.Succeeded)
+                {
+                    _logger.LogInformation("Password reset successfully for user with email: {Email}", dto.Email);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to reset password for user with email: {Email}. Errors: {Errors}",
+                        dto.Email,
+                        string.Join(", ", result.Errors.Select(e => e.Description)));
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while resetting password for email: {Email}.", dto.Email);
+                return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred." });
+            }
+        }
+    }
 }

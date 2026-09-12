@@ -14,7 +14,7 @@ namespace TMApi.Controllers
         private readonly IAuthService _authService;
         private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IAuthService authService, 
+        public AuthController(IAuthService authService,
             ILogger<AuthController> logger)
         {
             _authService = authService;
@@ -30,8 +30,8 @@ namespace TMApi.Controllers
             if (dto.Password != dto.ConfirmPassword)
             {
                 _logger.LogWarning("Password and Confirm Password do not match for user: {Username}", dto.Username);
-             
-                return BadRequest(new { Error = "Password and Confirm Password do not match" }); 
+
+                return BadRequest(new { Error = "Password and Confirm Password do not match" });
             }
 
             var result = await _authService.RegisterAsync(dto);
@@ -42,7 +42,7 @@ namespace TMApi.Controllers
                     dto.Username, string.Join(", ", result.Errors.Select(e => e.Description)));
                 return BadRequest(new { Errors = result.Errors.Select(e => e.Description) });
             }
-                
+
             _logger.LogInformation("User registered successfully: {Username}", dto.Username);
             return Ok(new { Message = "User registered successfully" });
         }
@@ -59,7 +59,7 @@ namespace TMApi.Controllers
                 _logger.LogWarning("Login failed for user: {Username}. Invalid token", dto.Username);
                 return Unauthorized("Invalid username or password");
             }
-            
+
             _logger.LogInformation("Login successful for user: {Username}", dto.Username);
             return Ok(new { Token = token });
         }
@@ -107,5 +107,36 @@ namespace TMApi.Controllers
             _logger.LogInformation("Status changed successfully for userId: {UserId} to isActive: {IsActive}", userId, isActive);
             return Ok(new { Message = "User status changed successfully" });
         }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            _logger.LogInformation("Forgot password request received for email: {Email}", dto.Email);
+            var result = await _authService.ForgotPasswordAsync(dto.Email);
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Forgot password failed for email: {Email}. Errors: {Errors}",
+                    dto.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+                return BadRequest(new { Errors = result.Errors.Select(e => e.Description) });
+            }
+            _logger.LogInformation("Forgot password email sent successfully to: {Email}", dto.Email);
+            return Ok(new { Message = "Password reset email sent successfully" });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            _logger.LogInformation("Reset password request received for email: {Email}", dto.Email);
+            var result = await _authService.ResetPasswordAsync(dto);
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Reset password failed for email: {Email}. Errors: {Errors}",
+                    dto.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+                return BadRequest(new { Errors = result.Errors.Select(e => e.Description) });
+            }
+            _logger.LogInformation("Password reset successfully for email: {Email}", dto.Email);
+            return Ok(new { Message = "Password reset successfully" });
+        }
+
     }
 }
