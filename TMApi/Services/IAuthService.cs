@@ -6,6 +6,7 @@ namespace TMApi.Services
     public interface IAuthService
     {
         Task<IdentityResult> RegisterAsync(RegisterDto dto);
+        Task<IdentityResult> ConfirmEmailAsync(string userId, string token);
         Task<string?> LoginAsync(LoginDto dto);
         Task<IdentityResult> ChangeUserRoleAsync(string userId, string role);
         Task<IEnumerable<UserListDto>> GetUsersAsync();

@@ -47,6 +47,40 @@ namespace TMApi.Controllers
             return Ok(new { Message = "User registered successfully" });
         }
 
+        [HttpPost("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] string userId, [FromQuery] string token)
+        {
+            _logger.LogInformation(
+            "Email confirmation request received for user: {UserId}.",
+            userId);
+
+            var result = await _authService.ConfirmEmailAsync(
+                userId,
+                token);
+
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning(
+                    "Email confirmation failed for user: {UserId}. Errors: {Errors}",
+                    userId,
+                    string.Join(", ", result.Errors.Select(e => e.Description)));
+
+                return BadRequest(new
+                {
+                    Errors = result.Errors.Select(e => e.Description)
+                });
+            }
+
+            _logger.LogInformation(
+                "Email confirmed successfully for user: {UserId}.",
+                userId);
+
+            return Ok(new
+            {
+                Message = "Email confirmed successfully."
+            });
+        }
+
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {

@@ -12,12 +12,12 @@ namespace TMApi.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
-        private readonly IEmailService _emailService;   
+        private readonly IEmailService _emailService;
 
         public AuthService(
             UserManager<ApplicationUser> userManager,
-            IConfiguration configuration, 
-            ILogger<AuthService> logger, 
+            IConfiguration configuration,
+            ILogger<AuthService> logger,
             IEmailService emailService)
         {
             _userManager = userManager;
@@ -43,6 +43,14 @@ namespace TMApi.Services
                 {
                     _logger.LogInformation("Registration succeeded for user: {Username}.", dto.Username);
                     await _userManager.AddToRoleAsync(user, "user");
+                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    var body = $"""
+                        Welcome to Task Manager!
+                        Please confirm your email by using the following token:
+                        {token}
+                        """;
+                    await _emailService.SendEmailAsync(user.Email, "Email Confirmation", body);
+                    _logger.LogInformation("Email confirmation token sent to user: {Username}.", dto.Email);
                     return result;
                 }
                 else
@@ -80,7 +88,11 @@ namespace TMApi.Services
                     _logger.LogWarning("Login failed for inactive user: {Username}.", dto.Username);
                     return "Invalid username or password.";
                 }
-
+                if(!user.EmailConfirmed)
+                {
+                    _logger.LogWarning("Login failed for unconfirmed email user: {Username}.", dto.Username);
+                    return "Invalid username or password.";
+                }
                 var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
                 if (!isPasswordValid)
                 {
@@ -269,7 +281,7 @@ namespace TMApi.Services
                     return IdentityResult.Failed(new IdentityError { Description = "User not found." });
                 }
 
-                if(!user.IsActive)
+                if (!user.IsActive)
                 {
                     _logger.LogWarning("Forgot password failed: User with email: {Email} is inactive.", email);
                     return IdentityResult.Failed(new IdentityError { Description = "User account is inactive." });
@@ -285,10 +297,10 @@ namespace TMApi.Services
                     If you did not request a password reset, you can ignore this email.
                     """;
 
-                await _emailService.SendEmailAsync(user.Email!, "Task Manager Password Reset",body);
+                await _emailService.SendEmailAsync(user.Email!, "Task Manager Password Reset", body);
 
-                    _logger.LogInformation(
-                    "Password reset email sent successfully to: {Email}.",email);
+                _logger.LogInformation(
+                "Password reset email sent successfully to: {Email}.", email);
 
                 return IdentityResult.Success;
 
@@ -312,7 +324,7 @@ namespace TMApi.Services
                     return IdentityResult.Failed(new IdentityError { Description = "User not found." });
                 }
 
-                if(!user.IsActive)
+                if (!user.IsActive)
                 {
                     _logger.LogWarning("Reset password failed: User with email: {Email} is inactive.", dto.Email);
                     return IdentityResult.Failed(new IdentityError { Description = "User account is inactive." });
@@ -335,6 +347,57 @@ namespace TMApi.Services
             {
                 _logger.LogError(ex, "An error occurred while resetting password for email: {Email}.", dto.Email);
                 return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred." });
+            }
+        }
+
+        public async Task<IdentityResult> ConfirmEmailAsync(string userId, string token)
+        {
+            try
+            {
+                _logger.LogInformation("Attempting email confirmation for user: {UserId}.",userId);
+
+                var user = await _userManager.FindByIdAsync(userId);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("Email confirmation failed. User not found: {UserId}.",userId);
+
+                    return IdentityResult.Failed(
+                        new IdentityError
+                        {
+                            Description = "User not found."
+                        });
+                }
+
+                var result = await _userManager.ConfirmEmailAsync(
+                    user,
+                    token);
+
+                if (result.Succeeded)
+                {
+                    _logger.LogInformation(
+                        "Email confirmed successfully for user: {UserId}.",
+                        userId);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Email confirmation failed for user: {UserId}. Errors: {Errors}",
+                        userId,
+                        string.Join(", ",
+                            result.Errors.Select(e => e.Description)));
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occured while confirming email for user: {UserId}.",userId);
+                return IdentityResult.Failed(
+                 new IdentityError
+                 {
+                     Description = "An unexpected error occurred."
+                 });
             }
         }
     }

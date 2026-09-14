@@ -318,7 +318,9 @@ namespace TMApi.Tests
             {
                 Id = "123",
                 UserName = "john@example.com",
-                Email = "john@example.com"
+                Email = "john@example.com",
+                IsActive = true,
+                EmailConfirmed = true
             };
 
             var dto = new LoginDto
