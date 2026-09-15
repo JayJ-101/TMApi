@@ -1,11 +1,9 @@
-﻿namespace TMApi.Models  
+﻿namespace TMApi.Models
 {
-    public class UpdateTaskDto
+    public class CreateTicketDto
     {
         public string Title { get; set; } = string.Empty;
-
         public string Description { get; set; } = string.Empty;
-
-        public bool IsCompleted { get; set; }
+        public TicketCategory Category { get; set; } = TicketCategory.General;
     }
 }

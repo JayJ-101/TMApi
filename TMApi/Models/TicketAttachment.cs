@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace TMApi.Models
 {
-    public class TaskAttachment
+    public class TicketAttachment
     {
         [Key]
         public int AttachmentId { get; set; }
@@ -33,7 +33,7 @@ namespace TMApi.Models
         public ApplicationUser? User { get; set; }
 
         [JsonIgnore]
-        public TaskItem? Task { get; set; }
+        public Ticket? Ticket { get; set; }
 
     }
 }

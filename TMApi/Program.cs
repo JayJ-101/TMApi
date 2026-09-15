@@ -112,7 +112,7 @@ builder.Services.AddAuthentication(
 
 
 
-builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 

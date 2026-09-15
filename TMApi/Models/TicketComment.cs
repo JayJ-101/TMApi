@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace TMApi.Models
 {
-    public class TaskComment
+    public class TicketComment
     {
         [Key]
         public int CommentId { get; set; }
@@ -26,7 +26,7 @@ namespace TMApi.Models
         public ApplicationUser? User { get; set; }
 
         [JsonIgnore]
-        public TaskItem? Task { get; set; }
+        public Ticket? Ticket { get; set; }
 
 
     }
