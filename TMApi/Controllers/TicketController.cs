@@ -32,7 +32,7 @@ namespace TMApi.Controllers
         public async Task<IActionResult> GetTicket(int id)
         {
             var ticket = await _ticketService.GetTicketAsync(id);
-
+         
             if (ticket == null)
                 return NotFound();
 
