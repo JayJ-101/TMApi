@@ -14,5 +14,8 @@ namespace TMApi.Services
 
         Task<bool> DeleteTicketAsync(int id);
 
+
+        Task<Ticket?> AdoptTicketAsync(int id, string userId);
+
     }
 }

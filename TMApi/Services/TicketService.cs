@@ -155,5 +155,42 @@ namespace TMApi.Services
                 throw;
             }
         }
+
+        public async Task<Ticket?> AdoptTicketAsync(int id, string userId)
+        {
+            try
+            {
+                _logger.LogInformation("User {UserId} is attempting to adopt ticket with ID {TicketId}.", userId, id);
+
+                var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == id);
+
+                if (ticket == null)
+                {
+                    _logger.LogWarning("Ticket with ID {TicketId} was not found.", id);
+                    return null;
+                }
+
+               if(ticket.AssignedUserId != null)
+               {
+                    _logger.LogWarning("Ticket with ID {TicketId} is already assigned to user {AssignedUserId}.", id, ticket.AssignedUserId);
+                    return null;
+               }
+
+                ticket.AssignedUserId = userId;
+                ticket.Status = TicketStatus.InProgress;
+                ticket.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Ticket with ID {TicketId} successfully adopted by user {UserId}.", id, userId);
+
+                return ticket;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while adopting ticket with ID {TicketId} by user {UserId}.", id, userId);
+                throw;
+            }
+        }
     } 
 }

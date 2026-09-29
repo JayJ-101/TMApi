@@ -82,5 +82,20 @@ namespace TMApi.Controllers
 
             return NoContent();
         }
+
+
+        [HttpPost("{id}/adopt")]
+        public async Task<ActionResult<Ticket>> AdoptTicket(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+            var ticket = await _ticketService.AdoptTicketAsync(id, userId);
+            if (ticket == null)
+                return NotFound();
+            return Ok(ticket);
+        }
     }
 }

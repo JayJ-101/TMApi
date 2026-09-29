@@ -54,14 +54,14 @@ namespace TMApi.Tests
 
             // Act
             var result = await _ticketController.GetTickets();
-            
+
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             var returnedTickets = Assert.IsType<List<Ticket>>(okResult.Value);
 
             Assert.Equal(2, returnedTickets.Count);
         }
-        
+
         [Fact]
         public async Task GetTickets_WhenNoTicketsExist_ShouldReturnOk()
         {
@@ -88,7 +88,7 @@ namespace TMApi.Tests
             //Arrange 
             var ticket = new Ticket
             {
-                Id= 1,
+                Id = 1,
                 Title = "Computer issue",
                 Description = "Computer will not start.",
                 Category = TicketCategory.Hardware,
@@ -257,7 +257,7 @@ namespace TMApi.Tests
                 Title = "Updated title",
                 Description = "Updated description",
                 Category = TicketCategory.General
-                
+
             };
 
             _ticketServiceMock
@@ -291,7 +291,7 @@ namespace TMApi.Tests
         {
             //Arrange
             _ticketServiceMock
-                .Setup(x =>x.DeleteTicketAsync(999))
+                .Setup(x => x.DeleteTicketAsync(999))
                 .ReturnsAsync(false);
 
             //Act
@@ -299,6 +299,98 @@ namespace TMApi.Tests
 
             //Assert
             Assert.IsType<NotFoundResult>(result);
+        }
+
+
+        [Fact]
+        public async Task AdoptTicket_WhenAuthenticated_ReturnOk()
+        {
+            //Arrange
+            var ticket = new Ticket
+            {
+                Id = 1,
+                Title = "Laptop issue",
+                Description = "Laptop will not start",
+                CreatedByUserId = "requester-1",
+                AssignedUserId = "agent-1",
+                Status = TicketStatus.InProgress
+            };
+
+            _ticketServiceMock
+                .Setup(x => x.AdoptTicketAsync(1, "agent-1"))
+                .ReturnsAsync(ticket);
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "agent-1")
+            };
+
+            _ticketController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(claims))
+                }
+            };
+
+            //Act
+            var result = await _ticketController.AdoptTicket(1);
+
+            //Assert
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedTicket = Assert.IsType<Ticket>(okResult.Value);
+
+            Assert.Equal(1, returnedTicket.Id);
+            Assert.Equal("agent-1", returnedTicket.AssignedUserId);
+            Assert.Equal(TicketStatus.InProgress, returnedTicket.Status);
+        }
+
+        [Fact]
+        public async Task AdoptTicket_WhenNotAuthenticated_ReturnUnauthorized()
+        {
+            //Arrange
+            _ticketController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity())
+                }
+            };
+            //Act
+            var result = await _ticketController.AdoptTicket(1);
+            //Assert
+            Assert.IsType<UnauthorizedResult>(result.Result);
+
+            _ticketServiceMock.Verify(
+                x => x.AdoptTicketAsync(
+                    It.IsAny<int>(),
+                    It.IsAny<string>()),
+                Times.Never);
+        }
+
+
+        [Fact]
+        public async Task AdoptTicket_WhenTicketDoesNotExist_ReturnNotFound()
+        {
+            //Arrange
+            _ticketServiceMock
+                .Setup(x => x.AdoptTicketAsync(999, "agent-1"))
+                .ReturnsAsync((Ticket?)null);
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "agent-1")
+            };
+            _ticketController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(claims))
+                }
+            };
+            //Act
+            var result = await _ticketController.AdoptTicket(999);
+            //Assert
+            Assert.IsType<NotFoundResult>(result.Result);
         }
     }
 

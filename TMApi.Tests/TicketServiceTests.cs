@@ -70,7 +70,7 @@ namespace TMApi.Tests
         {
             // Arrange
             var context = CreateInMemoryDbContext();
-            
+
             var ticket = new Ticket()
             {
                 Title = "Network issue",
@@ -100,14 +100,14 @@ namespace TMApi.Tests
             Assert.Equal(ticket.Priority, result.Priority);
             Assert.Equal(ticket.CreatedByUserId, result.CreatedByUserId);
         }
-        
+
         [Fact]
         public async Task GetTicketAsync_WhenTicketDoesntExist_ReturnNull()
         {
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
-            var service = new TicketService(context,_loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object);
 
             //Act
             var result = await service.GetTicketAsync(999);
@@ -115,7 +115,7 @@ namespace TMApi.Tests
             //Assert
             Assert.Null(result);
         }
-       
+
         [Fact]
         public async Task GetTicketsAsync_ShouldReturnAllTickets()
         {
@@ -124,25 +124,25 @@ namespace TMApi.Tests
             var service = new TicketService(context, _loggerMock.Object);
             var tickets = new List<Ticket>
             {
-                new Ticket 
-                {  
+                new Ticket
+                {
                     Title = "Issue 1",
                     Description = "Description 1",
                     Category = TicketCategory.General,
                     CreatedByUserId = "user1",
-                    Priority = TicketPriority.Medium, 
-                    Status = TicketStatus.Open, 
-                    CreatedAt = DateTime.UtcNow 
+                    Priority = TicketPriority.Medium,
+                    Status = TicketStatus.Open,
+                    CreatedAt = DateTime.UtcNow
                 },
-                new Ticket 
-                { 
+                new Ticket
+                {
                     Title = "Issue 2",
                     Description = "Description 2",
-                    Category = TicketCategory.Network, 
+                    Category = TicketCategory.Network,
                     CreatedByUserId = "user2",
-                    Priority = TicketPriority.High, 
-                    Status = TicketStatus.Open, 
-                    CreatedAt = DateTime.UtcNow 
+                    Priority = TicketPriority.High,
+                    Status = TicketStatus.Open,
+                    CreatedAt = DateTime.UtcNow
                 }
             };
 
@@ -151,18 +151,18 @@ namespace TMApi.Tests
 
             // Act
             var result = await service.GetTicketsAsync();
-            
+
             // Assert
             Assert.NotNull(result);
             Assert.Equal(2, result.Count);
         }
 
-   
+
         [Fact]
         public async Task UpdateTicketAsync_WhenTicketExists_ReturnTicket()
         {
             //Arrange
-            await using var context = CreateInMemoryDbContext();    
+            await using var context = CreateInMemoryDbContext();
 
             var service = new TicketService(context, _loggerMock.Object);
 
@@ -192,7 +192,7 @@ namespace TMApi.Tests
             //Assert
             Assert.NotNull(result);
             Assert.Equal("Update title", result.Title);
-            Assert.Equal("Update description",result.Description);
+            Assert.Equal("Update description", result.Description);
             Assert.Equal(TicketCategory.Software, result.Category);
             Assert.NotNull(result.UpdatedAt);
 
@@ -203,25 +203,25 @@ namespace TMApi.Tests
             Assert.Equal("Update description", updatedTicket.Description);
             Assert.Equal(TicketCategory.Software, updatedTicket.Category);
         }
-        
+
         [Fact]
         public async Task UpdateTicketAsync_WhenTicketDoesNotExist_ReturnNull()
         {
             //Arrange
             await using var context = CreateInMemoryDbContext();
-         
+
             var service = new TicketService(context, _loggerMock.Object);
-            
+
             var dto = new UpdateTicketDto
             {
                 Title = "Update title",
                 Description = "Update description",
                 Category = TicketCategory.Software,
             };
-            
+
             //Act
             var result = await service.UpdateTicketAsync(999, dto);
-            
+
             //Assert
             Assert.Null(result);
         }
@@ -231,9 +231,9 @@ namespace TMApi.Tests
         {
             //Arrange
             await using var context = CreateInMemoryDbContext();
-            
+
             var service = new TicketService(context, _loggerMock.Object);
-            
+
             var ticket = new Ticket
             {
                 Title = "Title",
@@ -243,19 +243,19 @@ namespace TMApi.Tests
                 CreatedByUserId = "user-123",
                 CreatedAt = DateTime.UtcNow,
             };
-            
+
             context.Tickets.Add(ticket);
             await context.SaveChangesAsync();
-            
+
             //Act
             var result = await service.DeleteTicketAsync(ticket.Id);
-            
+
             //Assert
             Assert.True(result);
-            
+
             var deletedTicket = await context.Tickets
                 .FirstOrDefaultAsync(t => t.Id == ticket.Id);
-            
+
             Assert.Null(deletedTicket);
         }
 
@@ -264,14 +264,92 @@ namespace TMApi.Tests
         {
             //Arrange
             await using var context = CreateInMemoryDbContext();
-            
+
             var service = new TicketService(context, _loggerMock.Object);
-            
+
             //Act
             var result = await service.DeleteTicketAsync(999);
-            
+
             //Assert
             Assert.False(result);
+        }
+
+        [Fact]
+        public async Task WhenTicketIsUnassigned_ShouldAssignAndSetInProgress()
+        {
+            //Arrange 
+            await using var context = CreateInMemoryDbContext();
+
+            var ticket = new Ticket
+            {
+                Id = 1,
+                Title = "Laptop issue",
+                Description = "Laptop will not start",
+                CreatedByUserId = "requester-1",
+                AssignedUserId = null,
+                Status = TicketStatus.Open
+            };
+
+            context.Tickets.Add(ticket);
+
+            await context.SaveChangesAsync();
+
+            var service = new TicketService(
+                context,
+                _loggerMock.Object);
+
+            // Act
+            var result = await service.AdoptTicketAsync(1, "agent-1");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal("agent-1", result.AssignedUserId);
+            Assert.Equal(TicketStatus.InProgress, result.Status);
+            Assert.NotNull(result.UpdatedAt);
+        }
+
+        [Fact]
+        public async Task AdoptTicketAsync_WhenTicketDoesNotExist_ReturnNull()
+        {
+            //Arrange
+            await using var context = CreateInMemoryDbContext();
+
+            var service = new TicketService(context, _loggerMock.Object);
+
+            //Act
+            var result = await service.AdoptTicketAsync(999, "agent-1");
+
+            //Assert
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task AdoptTicketAsync_WhenTicketIsAlreadyAssigned_ReturnNull()
+        {
+            //Arrange
+            await using var context = CreateInMemoryDbContext();
+
+            var ticket = new Ticket
+            {
+                Id = 1,
+                Title = "Laptop issue",
+                Description = "Laptop will not start",
+                CreatedByUserId = "requester-1",
+                AssignedUserId = "agent-2",
+                Status = TicketStatus.InProgress
+            };
+
+            context.Tickets.Add(ticket);
+
+            await context.SaveChangesAsync();
+
+            var service = new TicketService(context, _loggerMock.Object);
+
+            //Act
+            var result = await service.AdoptTicketAsync(1, "agent-1");
+
+            //Assert
+            Assert.Null(result);
         }
     }
 }
