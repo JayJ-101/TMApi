@@ -392,6 +392,85 @@ namespace TMApi.Tests
             //Assert
             Assert.IsType<NotFoundResult>(result.Result);
         }
+
+        [Fact]
+        public async Task AssignTicket_WhenServiceReturnTicket_ReturnOk()
+        {
+            //Arrange 
+            var ticket = new Ticket
+            {
+                Id = 1,
+                Title = "Laptop issue",
+                Description = "Laptop will not start",
+                CreatedByUserId = "requester-1",
+                AssignedUserId = "agent-1",
+                Status = TicketStatus.InProgress
+            };
+
+            _ticketServiceMock
+                .Setup(x => x.AssignTicketAsync(1, "agent-1"))
+                .ReturnsAsync(ticket);
+
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "admin-1")
+            };
+
+            _ticketController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(claims))
+                }
+            };
+
+            //Act
+            var dto = new AssignTicketDto
+            {
+                AgentUserId = "agent-1"
+            };
+            var result = await _ticketController.AssignTicket(1, dto);
+
+            //Assert
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedTicket = Assert.IsType<Ticket>(okResult.Value);
+
+            Assert.Equal(1, returnedTicket.Id);
+            Assert.Equal("agent-1", returnedTicket.AssignedUserId);
+            Assert.Equal(TicketStatus.InProgress, returnedTicket.Status);
+
+            _ticketServiceMock.Verify(x => x.AssignTicketAsync(1, "agent-1"), Times.Once);
+        }
+
+        [Fact]
+        public async Task AssignTicket_WhenTicketDoesNotExist_ReturnNotFound()
+        {
+            //Arrange 
+            var dto = new AssignTicketDto
+            {
+                AgentUserId = "agent-1"
+            };
+
+            _ticketServiceMock
+                .Setup(x => x.AssignTicketAsync(999, "agent-1"))
+                .ReturnsAsync((Ticket?)null);
+
+
+            //Act
+            var result = await _ticketController.AssignTicket(999, dto);
+
+            //Assert
+            Assert.IsType<NotFoundResult>(result.Result);
+
+            _ticketServiceMock.Verify(
+                x => x.AssignTicketAsync(999, "agent-1"),
+                Times.Once);
+
+        }
+
     }
+
+    
 
 }

@@ -1,9 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 using TMApi.Data;
@@ -15,10 +17,23 @@ namespace TMApi.Tests
     public class TicketServiceTests
     {
         private readonly Mock<ILogger<TicketService>> _loggerMock;
+        private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
 
         public TicketServiceTests()
         {
             _loggerMock = new Mock<ILogger<TicketService>>();
+
+            var store = new Mock<IUserStore<ApplicationUser>>();
+            _userManagerMock = new Mock<UserManager<ApplicationUser>>(
+            store.Object,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
         }
 
         private AppDbContext CreateInMemoryDbContext()
@@ -34,7 +49,7 @@ namespace TMApi.Tests
         {
             // Arrange
             var context = CreateInMemoryDbContext();
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
             var dto = new CreateTicketDto
             {
                 Title = "Computer not working",
@@ -85,7 +100,7 @@ namespace TMApi.Tests
             context.Tickets.Add(ticket);
             await context.SaveChangesAsync();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             //Act 
             var result = await service.GetTicketAsync(ticket.Id);
@@ -107,7 +122,7 @@ namespace TMApi.Tests
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             //Act
             var result = await service.GetTicketAsync(999);
@@ -121,7 +136,7 @@ namespace TMApi.Tests
         {
             // Arrange
             var context = CreateInMemoryDbContext();
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
             var tickets = new List<Ticket>
             {
                 new Ticket
@@ -164,7 +179,7 @@ namespace TMApi.Tests
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             var ticket = new Ticket
             {
@@ -210,7 +225,7 @@ namespace TMApi.Tests
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             var dto = new UpdateTicketDto
             {
@@ -232,7 +247,7 @@ namespace TMApi.Tests
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             var ticket = new Ticket
             {
@@ -265,7 +280,7 @@ namespace TMApi.Tests
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             //Act
             var result = await service.DeleteTicketAsync(999);
@@ -296,7 +311,8 @@ namespace TMApi.Tests
 
             var service = new TicketService(
                 context,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                _userManagerMock.Object);
 
             // Act
             var result = await service.AdoptTicketAsync(1, "agent-1");
@@ -314,7 +330,7 @@ namespace TMApi.Tests
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             //Act
             var result = await service.AdoptTicketAsync(999, "agent-1");
@@ -343,7 +359,7 @@ namespace TMApi.Tests
 
             await context.SaveChangesAsync();
 
-            var service = new TicketService(context, _loggerMock.Object);
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             //Act
             var result = await service.AdoptTicketAsync(1, "agent-1");
@@ -351,5 +367,149 @@ namespace TMApi.Tests
             //Assert
             Assert.Null(result);
         }
+
+        [Fact]
+        public async Task AssignTicketAsync_WhenUserIsAgent_AssignTicket()
+        {
+            // Arrange
+            await using var context = CreateInMemoryDbContext();
+
+            var ticket = new Ticket
+            {
+                Id = 1,
+                Title = "Laptop issue",
+                Description = "Laptop will not start",
+                CreatedByUserId = "requester-1",
+                Status = TicketStatus.Open
+            };
+
+            context.Tickets.Add(ticket);
+            await context.SaveChangesAsync();
+
+            var agent = new ApplicationUser
+            {
+                Id = "agent-1",
+                UserName = "agent1@example.com"
+            };
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync("agent-1"))
+                .ReturnsAsync(agent);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(agent, "Agent"))
+                .ReturnsAsync(true);
+
+            var service = new TicketService(
+                context, _loggerMock.Object
+                , _userManagerMock.Object);
+
+            // Act
+            var result = await service.AssignTicketAsync(1, "agent-1");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal("agent-1", result.AssignedUserId);
+            Assert.Equal(TicketStatus.InProgress, result.Status);
+            Assert.NotNull(result.UpdatedAt);
+
+            _userManagerMock.Verify(x => x.FindByIdAsync("agent-1"), Times.Once);
+            _userManagerMock.Verify(x => x.IsInRoleAsync(agent, "Agent"), Times.Once);
+        }
+
+        [Fact]
+        public async Task AssignTicketAsync_WhenUserIsNotAgent_ReturnNull()
+        {
+            // Arrange
+            await using var context = CreateInMemoryDbContext();
+            var ticket = new Ticket
+            {
+                Id = 1,
+                Title = "Laptop issue",
+                Description = "Laptop will not start",
+                CreatedByUserId = "requester-1",
+                Status = TicketStatus.Open
+            };
+            context.Tickets.Add(ticket);
+            await context.SaveChangesAsync();
+            var user = new ApplicationUser
+            {
+                Id = "user-1",
+                UserName = "requester1@example.com"
+            };
+
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync("requester-1"))
+                .ReturnsAsync(user);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(user, "Agent"))
+                .ReturnsAsync(false);
+
+
+            var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
+
+
+            //Act
+            var result = await service.AssignTicketAsync(1, "requester-1");
+
+            //Assert
+            Assert.Null(result);
+
+            var unchangedTicket = await context.Tickets.FindAsync(1);
+
+            Assert.NotNull(unchangedTicket);
+            Assert.Null(unchangedTicket.AssignedUserId);
+            Assert.Equal(TicketStatus.Open, unchangedTicket.Status);
+        }
+
+
+        [Fact]
+        public async Task AssignTicketAsync_WhenUserDoesNotExist_ReturnsNull()
+        {
+            // Arrange
+            await using var context = CreateInMemoryDbContext();
+
+            var ticket = new Ticket { 
+                Id = 1, 
+                Title = "Laptop issue",
+                Description = "Laptop will not start", 
+                CreatedByUserId = "requester-1",
+                Status = TicketStatus.Open 
+            };
+
+            context.Tickets.Add(ticket);
+            await context.SaveChangesAsync();
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync("unknown-user"))
+                .ReturnsAsync((ApplicationUser?)null);
+
+            var service = new TicketService(
+                context,
+                _loggerMock.Object,
+                _userManagerMock.Object);
+
+            // Act
+            var result = await service.AssignTicketAsync(1, "unknown-user");
+
+            // Assert
+            Assert.Null(result);
+
+            var unchangedTicket = await context.Tickets.FindAsync(1);
+
+            Assert.NotNull(unchangedTicket);
+            Assert.Null(unchangedTicket.AssignedUserId);
+            Assert.Equal(TicketStatus.Open, unchangedTicket.Status);
+
+            _userManagerMock.Verify(
+                x => x.IsInRoleAsync(
+                    It.IsAny<ApplicationUser>(),
+                    "Agent"),
+                Times.Never);
+        }
     }
+
+    
 }

@@ -16,6 +16,6 @@ namespace TMApi.Services
 
 
         Task<Ticket?> AdoptTicketAsync(int id, string userId);
-
+        Task<Ticket?> AssignTicketAsync(int id, string userId);
     }
 }

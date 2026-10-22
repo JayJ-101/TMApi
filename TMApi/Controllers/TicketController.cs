@@ -9,15 +9,15 @@ using TMApi.Services;
 namespace TMApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] 
+    [Route("api/[controller]")]
     [Authorize]
-    public class TicketController    : ControllerBase
+    public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
 
         public TicketController(ITicketService ticketService)
         {
-             _ticketService = ticketService;
+            _ticketService = ticketService;
         }
 
         [HttpGet]
@@ -32,7 +32,7 @@ namespace TMApi.Controllers
         public async Task<IActionResult> GetTicket(int id)
         {
             var ticket = await _ticketService.GetTicketAsync(id);
-         
+
             if (ticket == null)
                 return NotFound();
 
@@ -44,7 +44,7 @@ namespace TMApi.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            if(string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();
             }
@@ -57,8 +57,8 @@ namespace TMApi.Controllers
                 ticket);
         }
 
-        
-        
+
+
         [HttpPut("{id}")]
         public async Task<ActionResult<Ticket>> UpdateTicket(int id, UpdateTicketDto dto)
         {
@@ -83,7 +83,7 @@ namespace TMApi.Controllers
             return NoContent();
         }
 
-
+        
         [HttpPost("{id}/adopt")]
         public async Task<ActionResult<Ticket>> AdoptTicket(int id)
         {
@@ -93,6 +93,28 @@ namespace TMApi.Controllers
                 return Unauthorized();
             }
             var ticket = await _ticketService.AdoptTicketAsync(id, userId);
+            if (ticket == null)
+                return NotFound();
+            return Ok(ticket);
+        }
+
+
+        [HttpPost("{id}/assign")]
+        [Authorize(Roles ="Admin")]
+        public async Task<ActionResult<Ticket>> AssignTicket(int id, [FromBody] AssignTicketDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.AgentUserId))
+            {
+                return BadRequest("Agent user ID is required.");
+            }
+
+            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //if (string.IsNullOrEmpty(userId))
+            //{
+            //    return Unauthorized();
+            //}
+            var ticket = await _ticketService.AssignTicketAsync(id, dto.AgentUserId);
+
             if (ticket == null)
                 return NotFound();
             return Ok(ticket);

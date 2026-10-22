@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using TMApi.Data;
 using TMApi.Models;
 
@@ -8,10 +9,12 @@ namespace TMApi.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<TicketService> _logger;
-        public TicketService(AppDbContext context, ILogger<TicketService> logger)
+        private readonly UserManager<ApplicationUser> _userManager;
+        public TicketService(AppDbContext context, ILogger<TicketService> logger, UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _logger = logger;
+            _userManager = userManager;
         }
 
         public async Task<List<Ticket>> GetTicketsAsync()
@@ -192,5 +195,46 @@ namespace TMApi.Services
                 throw;
             }
         }
+
+        public async Task<Ticket?> AssignTicketAsync(int id, string userId)
+        {
+            try
+            {
+                _logger.LogInformation("Assigning ticket with ID {TicketId} to user {UserId}.", id, userId);
+
+                //gets the ticket by id
+                var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == id);
+                if (ticket == null)
+                {
+                    _logger.LogWarning("Ticket with ID {TicketId} was not found.", id);
+                    return null;
+                }
+
+                //get users with agent role
+                var agent = await _userManager.FindByIdAsync(userId);
+                //check if user is an agent
+                if (agent == null || !await _userManager.IsInRoleAsync(agent, "Agent"))
+                {
+                    _logger.LogWarning("User with ID {UserId} was not found or is not an agent.", userId);
+                    return null;
+                }
+
+                ticket.AssignedUserId = agent.Id;
+                ticket.Status = TicketStatus.InProgress;
+                ticket.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("Ticket with ID {TicketId} successfully assigned to user {UserId}.", id, userId);
+                
+                return ticket;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while assigning ticket with ID {TicketId} to user {UserId}.", id, userId);
+                throw;
+            }
+        }
+
     } 
 }
