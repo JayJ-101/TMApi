@@ -527,7 +527,7 @@ namespace TMApi.Tests
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var returnedAgents = Assert.IsAssignableFrom<IList<ApplicationUser>>(
+            var returnedAgents = Assert.IsAssignableFrom<IList<AgentDto>>(
                 okResult.Value);
 
             Assert.Empty(returnedAgents);
