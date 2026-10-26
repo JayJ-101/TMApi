@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using TMApi.Data;
 using TMApi.Models;
+using System.Linq;
 
 namespace TMApi.Services
 {
@@ -232,6 +233,27 @@ namespace TMApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while assigning ticket with ID {TicketId} to user {UserId}.", id, userId);
+                throw;
+            }
+        }
+
+        public async Task<IList<AgentDto>> GetAgentsAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Retrieving all users with the 'Agent' role.");
+                var agents = await _userManager.GetUsersInRoleAsync("Agent");
+                _logger.LogInformation("Retrieved {AgentCount} agents.", agents.Count);
+                return agents.Select(agent => new AgentDto
+                {
+                    Id = agent.Id,
+                    UserName = agent.UserName,
+                    FullName = agent.FullName
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while retrieving agents.");
                 throw;
             }
         }

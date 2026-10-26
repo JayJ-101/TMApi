@@ -98,6 +98,14 @@ namespace TMApi.Controllers
             return Ok(ticket);
         }
 
+        [HttpGet("agents")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IList<AgentDto>>> GetAgents()
+        {
+            var agents = await _ticketService.GetAgentsAsync();
+
+            return Ok(agents);
+        }
 
         [HttpPost("{id}/assign")]
         [Authorize(Roles ="Admin")]
@@ -108,11 +116,6 @@ namespace TMApi.Controllers
                 return BadRequest("Agent user ID is required.");
             }
 
-            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            //if (string.IsNullOrEmpty(userId))
-            //{
-            //    return Unauthorized();
-            //}
             var ticket = await _ticketService.AssignTicketAsync(id, dto.AgentUserId);
 
             if (ticket == null)

@@ -509,6 +509,88 @@ namespace TMApi.Tests
                     "Agent"),
                 Times.Never);
         }
+
+
+        [Fact]
+        public async Task GetAgentsAsync_ShouldReturnAgents()
+        {
+            // Arrange
+            var agents = new List<ApplicationUser>
+            {
+                new ApplicationUser
+                {
+                    Id = "agent-1",
+                    UserName = "john@company.com",
+                    FullName = "John Smith"
+                },
+                new ApplicationUser
+                {
+                    Id = "agent-2",
+                    UserName = "mary@company.com",
+                    FullName = "Mary Jones"
+                }
+            };
+
+            _userManagerMock
+                .Setup(x => x.GetUsersInRoleAsync("Agent"))
+                .ReturnsAsync(agents);
+
+            await using var context = CreateInMemoryDbContext();
+
+            var service = new TicketService(
+                context,
+                _loggerMock.Object,
+                _userManagerMock.Object);
+
+            // Act
+            var result = await service.GetAgentsAsync();
+
+            // Assert
+            Assert.Equal(2, result.Count);
+
+            var firstAgent = result.Single(agent => agent.Id == "agent-1");
+            Assert.Equal("john@company.com", firstAgent.UserName);
+            Assert.Equal("John Smith", firstAgent.FullName);
+
+            var secondAgent = result.Single(agent => agent.Id == "agent-2");
+            Assert.Equal("mary@company.com", secondAgent.UserName);
+            Assert.Equal("Mary Jones", secondAgent.FullName);
+
+            _userManagerMock.Verify(
+                x => x.GetUsersInRoleAsync("Agent"),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAgentsAsync_WhenNoAgentsExist_ReturnsEmptyList()
+        {
+            // Arrange
+            _userManagerMock
+                .Setup(x => x.GetUsersInRoleAsync("Agent"))
+                .ReturnsAsync(new List<ApplicationUser>());
+
+            await using var context = CreateInMemoryDbContext();
+
+            var service = new TicketService(
+                context,
+                _loggerMock.Object,
+                _userManagerMock.Object);
+
+            // Act
+            var result = await service.GetAgentsAsync();
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Empty(result);
+
+            _userManagerMock.Verify(
+                x => x.GetUsersInRoleAsync("Agent"),
+                Times.Once);
+        }
+
+
+
+
     }
 
     

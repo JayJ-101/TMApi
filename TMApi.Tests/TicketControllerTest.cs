@@ -469,8 +469,72 @@ namespace TMApi.Tests
 
         }
 
+
+
+
+        [Fact]
+        public async Task GetAgents_WhenAgentsExist_ReturnsOkWithAgents()
+        {
+            // Arrange
+            var agents = new List<AgentDto>
+            {
+                new AgentDto
+                {
+                    Id = "agent-1",
+                    UserName = "john@company.com",
+                    FullName = "John Smith"
+                },
+                new AgentDto
+                {
+                    Id = "agent-2",
+                    UserName = "mary@company.com",
+                    FullName = "Mary Jones"
+                }
+            };
+
+            _ticketServiceMock
+                .Setup(x => x.GetAgentsAsync())
+                .ReturnsAsync(agents);
+
+            // Act
+            var result = await _ticketController.GetAgents();
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedAgents = Assert.IsAssignableFrom<IList<AgentDto>>(
+                okResult.Value);
+
+            Assert.Equal(2, returnedAgents.Count);
+            Assert.Contains(returnedAgents, user => user.Id == "agent-1");
+            Assert.Contains(returnedAgents, user => user.Id == "agent-2");
+
+            _ticketServiceMock.Verify(
+                x => x.GetAgentsAsync(),
+                Times.Once);
+        }
+
+
+        [Fact]
+        public async Task GetAgents_WhenNoAgentsExist_ReturnsOkWithEmptyList()
+        {
+            // Arrange
+            _ticketServiceMock
+                .Setup(x => x.GetAgentsAsync())
+                .ReturnsAsync(new List<AgentDto>());
+
+            // Act
+            var result = await _ticketController.GetAgents();
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedAgents = Assert.IsAssignableFrom<IList<ApplicationUser>>(
+                okResult.Value);
+
+            Assert.Empty(returnedAgents);
+
+            _ticketServiceMock.Verify(
+                x => x.GetAgentsAsync(),
+                Times.Once);
+        }
     }
-
-    
-
 }
