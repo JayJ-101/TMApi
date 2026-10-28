@@ -26,3 +26,4 @@ namespace TMApi.Services
         Task<IList<TicketComment>> GetCommentsAsync(int ticketId, string userId);
     }
 }
+ 

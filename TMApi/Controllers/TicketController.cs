@@ -122,5 +122,42 @@ namespace TMApi.Controllers
                 return NotFound();
             return Ok(ticket);
         }
+
+
+        #region Ticket Comments
+        [HttpPost("{id}/comments")]
+        public async Task<IActionResult> AddComment(int id, [FromBody] AddCommentDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+            var comment = await _ticketService.AddCommentAsync(id, userId, dto.Content, dto.IsInternal);
+
+            if (comment == null)
+                return NotFound();
+
+            return Ok(comment);
+        }
+
+        [HttpGet("{id}/comments")]
+        public async Task<IActionResult> GetComments(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if(string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var comments = await _ticketService.GetCommentsAsync(id, userId );
+            
+            if (comments == null)
+                return NotFound();
+            
+            return Ok(comments);
+        }
+        #endregion
     }
 }

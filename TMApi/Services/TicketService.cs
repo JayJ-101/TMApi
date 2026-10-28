@@ -360,10 +360,6 @@ namespace TMApi.Services
             return await comments
                 .OrderBy(c => c.CreatedAt)
                 .ToListAsync();
-
-
-
-
         }
     } 
 }
