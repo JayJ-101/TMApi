@@ -4,9 +4,9 @@ namespace TMApi.Services
 {
     public interface ITicketService
     {
-        Task<List<Ticket>> GetTicketsAsync();
+        Task<List<Ticket>> GetTicketsAsync(string userId);
 
-        Task<Ticket?> GetTicketAsync(int id);  
+        Task<Ticket?> GetTicketAsync(int id,string userId);  
 
         Task<Ticket> CreateTicketAsync(CreateTicketDto dto, string userId);
 
