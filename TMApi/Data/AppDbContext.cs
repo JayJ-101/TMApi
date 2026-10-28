@@ -12,11 +12,13 @@ namespace TMApi.Data
         }
 
         public DbSet<Ticket> Tickets { get; set; }
+        public DbSet<TicketComment> TicketComments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
+            // Configure the relationships for Ticket entity
             builder.Entity<Ticket>()
                 .HasOne(t=>t.CreatedByUser)
                 .WithMany()
@@ -40,6 +42,23 @@ namespace TMApi.Data
                 .WithMany()
                 .HasForeignKey(t => t.ClosedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+
+            // Configure the relationships for TicketComment entity
+            builder.Entity<TicketComment>()
+                .HasOne(c => c.Ticket)
+                .WithMany()
+                .HasForeignKey(tc => tc.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TicketComment>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+
         }
 
     }

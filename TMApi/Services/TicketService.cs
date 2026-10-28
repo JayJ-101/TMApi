@@ -258,5 +258,112 @@ namespace TMApi.Services
             }
         }
 
+        public async Task<TicketComment> AddCommentAsync(int ticketId, string userId, string content, bool isInternal)
+        {
+            try
+            {
+                _logger.LogInformation("Adding a comment to ticket with ID {TicketId} by user {UserId}.", ticketId, userId);
+
+                var ticket = _context.Tickets.FirstOrDefault(t => t.Id == ticketId);
+
+                if (ticket == null)
+                {
+                    _logger.LogWarning("Ticket with ID {TicketId} was not found.", ticketId);
+                    throw new KeyNotFoundException($"Ticket with ID {ticketId} not found.");
+                }
+
+                var user = await _userManager.FindByIdAsync(userId);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("User with ID {UserId} was not found.", userId);
+                    throw new UnauthorizedAccessException($"User with ID {userId} not found.");
+                }
+
+                var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+                var isAgent = await _userManager.IsInRoleAsync(user, "Agent");
+                var isRequester = await _userManager.IsInRoleAsync(user,"Requester");
+
+                //Only admin and agent may create internal comments.
+                if (isInternal && !isAdmin && !isAgent)
+                    throw new UnauthorizedAccessException("You are not authorized to create internal notes.");
+                
+                
+                if(isRequester && !isAdmin && !isAgent && ticket.CreatedByUserId !=userId)
+                    throw new UnauthorizedAccessException("You are not authorized to create comments on this ticket.");
+
+
+                //Agent may only comment on tickets assigned to them.
+                if (isAgent && !isAdmin && ticket.AssignedUserId != userId)
+                    throw new UnauthorizedAccessException("You are not authorized to create comments on this ticket.");
+
+                var comment = new TicketComment
+                {
+                    Content = content,
+                    IsInternal = isInternal,
+                    CreatedAt = DateTime.UtcNow,
+                    TicketId = ticketId,
+                    UserId = userId
+                };
+
+                _context.TicketComments.Add(comment);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Comment added to ticket with ID {TicketId} by user {UserId}.", ticketId, userId);
+
+                return comment;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while adding a comment to ticket with ID {TicketId} by user {UserId}.", ticketId, userId);
+                throw;
+            }
+        }
+
+        public async Task<IList<TicketComment>> GetCommentsAsync(int ticketId, string userId)
+        {
+            var ticket = _context.Tickets.FirstOrDefault(t => t.Id == ticketId);
+
+            if (ticket == null)
+            {
+                _logger.LogWarning("Ticket with ID {TicketId} was not found.", ticketId);
+                throw new KeyNotFoundException($"Ticket with ID {ticketId} not found.");
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if(user == null) 
+                throw new UnauthorizedAccessException($"User with ID {userId} not found.");
+
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+            var isAgent = await _userManager.IsInRoleAsync(user, "Agent");
+            var isRequester = await _userManager.IsInRoleAsync(user, "Requester");
+
+
+            if(!isAdmin && !isAgent && !isRequester)
+                throw new UnauthorizedAccessException("You are not authorized to view comments on this ticket.");
+
+            if(isRequester && !isAdmin && !isAgent && ticket.CreatedByUserId != userId)
+                    throw new UnauthorizedAccessException("You are not authorized to view comments on this ticket.");
+
+            var comments =  _context.TicketComments
+                .AsNoTracking()
+                .Where(c => c.TicketId == ticketId);
+
+            //Filter out internal comments for non-admin and non-agent users
+            if(!isAdmin && !isAgent)
+            {
+                comments = comments.Where(c => !c.IsInternal);
+            }
+
+
+            return await comments
+                .OrderBy(c => c.CreatedAt)
+                .ToListAsync();
+
+
+
+
+        }
     } 
 }

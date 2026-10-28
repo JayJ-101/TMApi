@@ -19,5 +19,10 @@ namespace TMApi.Services
         Task<Ticket?> AssignTicketAsync(int id, string userId);
 
         Task<IList<AgentDto>> GetAgentsAsync();
+
+        // Comment-related methods
+        Task<TicketComment> AddCommentAsync(int ticketId, string userId, string content, bool isInternal);
+
+        Task<IList<TicketComment>> GetCommentsAsync(int ticketId, string userId);
     }
 }

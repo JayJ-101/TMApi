@@ -15,9 +15,9 @@ namespace TMApi.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
-        // Foreign key to TaskItem
+        // Foreign key to Ticket
         [Required]
-        public int TaskId { get; set; }
+        public int TicketId { get; set; }
 
         [Required]
         public string UserId { get; set; }
