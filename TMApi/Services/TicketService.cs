@@ -18,17 +18,34 @@ namespace TMApi.Services
             _userManager = userManager;
         }
 
-        public async Task<List<Ticket>> GetTicketsAsync()
+        public async Task<List<Ticket>> GetTicketsAsync(string userId)
         {
             try
             {
-                _logger.LogInformation("Fetching all tickets");
+                _logger.LogInformation("Fetching all tickets for user {UserId}", userId);
 
-                var tickets = await _context.Tickets
-                    .AsNoTracking()
-                    .ToListAsync();
+                var user = await _userManager.FindByIdAsync(userId);
+
+                if (user == null)
+                    throw new UnauthorizedAccessException("User not found.");
+
+                var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+                var isAgent = await _userManager.IsInRoleAsync(user, "Agent");
+                var isRequester = await _userManager.IsInRoleAsync(user, "user");
+
+
+                if (!isAdmin && !isAgent && !isRequester)
+                    throw new UnauthorizedAccessException("Invalid user role.");
+
+                var query = _context.Tickets.AsNoTracking();
+
+                if (!isAdmin && !isAgent)
+                    query = query.Where(t => t.CreatedByUserId == userId);
+
+                var tickets = await query.ToListAsync();
 
                 _logger.LogInformation("Retrieving {TicketCount} tickets", tickets.Count);
+                
                 return tickets;
             }
             catch (Exception ex)
@@ -40,19 +57,36 @@ namespace TMApi.Services
 
         }
 
-        public async Task<Ticket?> GetTicketAsync(int id)
+        public async Task<Ticket?> GetTicketAsync(int id, string userId)
         {
             try
             {
-                _logger.LogInformation("Retrieving ticket with ID {TicketId}.", id);
+                _logger.LogInformation("Retrieving ticket with ID {TicketId} for user {UserId}.", id, userId);
 
-                var ticket = await _context.Tickets
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(t => t.Id == id);
+                var user = await _userManager.FindByIdAsync(userId);
+                
+                if (user == null)
+                    throw new UnauthorizedAccessException("User not found.");
+
+                var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+                var isAgent = await _userManager.IsInRoleAsync(user, "Agent");
+                var isRequester = await _userManager.IsInRoleAsync(user, "user");
+
+                if (!isAdmin && !isAgent && !isRequester)
+                    throw new UnauthorizedAccessException("Invalid user role.");
+
+                var query = _context.Tickets
+                .AsNoTracking()
+                .Where(t => t.Id == id);
+
+                if (!isAdmin && !isAgent)
+                    query = query.Where(t => t.CreatedByUserId == userId);
+
+                var ticket = await query.FirstOrDefaultAsync();
 
                 if (ticket == null)
                 {
-                    _logger.LogWarning("Ticket with ID {TicketId} was not found.", id);
+                    _logger.LogWarning("Ticket with ID {TicketId} was not found for user {UserId}.", id, userId);
                 }
 
                 return ticket;

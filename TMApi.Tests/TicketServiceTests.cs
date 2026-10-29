@@ -100,10 +100,32 @@ namespace TMApi.Tests
             context.Tickets.Add(ticket);
             await context.SaveChangesAsync();
 
+            var user = new ApplicationUser
+            {
+                Id = "user-123",
+                UserName = "testuser"
+            };
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync("user-123"))
+                .ReturnsAsync(user);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(user, "Admin"))
+                .ReturnsAsync(false);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(user, "Agent"))
+                .ReturnsAsync(false);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(user, "user"))
+                .ReturnsAsync(true);
+
             var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             //Act 
-            var result = await service.GetTicketAsync(ticket.Id);
+            var result = await service.GetTicketAsync(ticket.Id, "user-123");
 
             //Assert
             Assert.NotNull(result);
@@ -122,21 +144,67 @@ namespace TMApi.Tests
             //Arrange
             await using var context = CreateInMemoryDbContext();
 
+            var user = new ApplicationUser
+            {
+                Id = "user-123",
+                UserName = "testuser"
+            };
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync("user-123"))
+                .ReturnsAsync(user);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(user, "Admin"))
+                .ReturnsAsync(false);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(user, "Agent"))
+                .ReturnsAsync(false);
+
+            _userManagerMock
+                .Setup(x => x.IsInRoleAsync(user, "user"))
+                .ReturnsAsync(true);
+
             var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
 
             //Act
-            var result = await service.GetTicketAsync(999);
+            var result = await service.GetTicketAsync(999, "user-123");
 
             //Assert
             Assert.Null(result);
         }
 
         [Fact]
-        public async Task GetTicketsAsync_ShouldReturnAllTickets()
+        public async Task GetTicketsAsync_Requester_ReturnAllTickets()
         {
             // Arrange
             var context = CreateInMemoryDbContext();
+
+            var user = new ApplicationUser
+            {
+                Id = "user1",
+                UserName = "requester1"
+            };
+
+            _userManagerMock
+                .Setup(x => x.FindByIdAsync("user1"))
+                .ReturnsAsync(user);
+
+            _userManagerMock
+                .Setup(x=>x.IsInRoleAsync(user,"Admin"))
+                .ReturnsAsync(false);
+
+            _userManagerMock
+                .Setup(x=>x.IsInRoleAsync(user,"Agent"))
+                .ReturnsAsync(false);
+
+            _userManagerMock
+                .Setup(x=>x.IsInRoleAsync(user,"user"))
+                .ReturnsAsync(true);
+
             var service = new TicketService(context, _loggerMock.Object, _userManagerMock.Object);
+
             var tickets = new List<Ticket>
             {
                 new Ticket
@@ -165,11 +233,11 @@ namespace TMApi.Tests
             await context.SaveChangesAsync();
 
             // Act
-            var result = await service.GetTicketsAsync();
+            var result = await service.GetTicketsAsync("user1");
 
             // Assert
-            Assert.NotNull(result);
-            Assert.Equal(2, result.Count);
+            Assert.Single(result);
+            Assert.Equal("user1", result[0].CreatedByUserId);
         }
 
 

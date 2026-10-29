@@ -23,7 +23,13 @@ namespace TMApi.Controllers
         [HttpGet]
         public async Task<ActionResult<List<Ticket>>> GetTickets()
         {
-            var tickets = await _ticketService.GetTicketsAsync();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var tickets = await _ticketService.GetTicketsAsync(userId);
 
             return Ok(tickets);
         }
@@ -31,7 +37,13 @@ namespace TMApi.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTicket(int id)
         {
-            var ticket = await _ticketService.GetTicketAsync(id);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var ticket = await _ticketService.GetTicketAsync(id, userId);
 
             if (ticket == null)
                 return NotFound();

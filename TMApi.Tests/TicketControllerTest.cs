@@ -48,8 +48,24 @@ namespace TMApi.Tests
                     CreatedByUserId = "user-124"
                 }
             };
+
+            _ticketController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(
+                    new ClaimsIdentity(
+                        new[]
+                        {
+                            new Claim(ClaimTypes.NameIdentifier, "agent-123")
+                        },
+                        "TestAuthentication"))
+                }
+            };
+
+
             _ticketServiceMock
-                    .Setup(x => x.GetTicketsAsync())
+                    .Setup(x => x.GetTicketsAsync("agent-123"))
                     .ReturnsAsync(tickets);
 
             // Act
@@ -68,8 +84,22 @@ namespace TMApi.Tests
             //Arrange 
             var tickets = new List<Ticket>();
 
+            _ticketController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(
+                       new ClaimsIdentity(
+                           new[]
+                           {
+                                new Claim(ClaimTypes.NameIdentifier, "agent-123")
+                           },
+                           "TestAuthentication"))
+                }
+            };
+
             _ticketServiceMock
-                .Setup(x => x.GetTicketsAsync())
+                .Setup(x => x.GetTicketsAsync("agent-123"))
                 .ReturnsAsync(tickets);
 
             //Sct 
@@ -96,9 +126,20 @@ namespace TMApi.Tests
                 Priority = TicketPriority.Medium,
                 CreatedByUserId = "user-123"
             };
-
+            
+            var claims = new List<Claim>
+            { 
+                new Claim(ClaimTypes.NameIdentifier, "user-123")
+            };
+            _ticketController.ControllerContext = new ControllerContext { 
+                HttpContext = new DefaultHttpContext 
+                { 
+                    User = new ClaimsPrincipal(
+                        new ClaimsIdentity(claims, "TestAuthentication")) 
+                }
+            };
             _ticketServiceMock
-                .Setup(x => x.GetTicketAsync(1))
+                .Setup(x => x.GetTicketAsync(1,"user-123"))
                 .ReturnsAsync(ticket);
 
             //Act
@@ -116,8 +157,20 @@ namespace TMApi.Tests
         public async Task GetTicket_WhenTicketDoesNotExist_ReturnNotFound()
         {
             //Arrange
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, "user-123")
+            };
+            _ticketController.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(
+                        new ClaimsIdentity(claims, "TestAuthentication"))
+                }
+            };
             _ticketServiceMock
-                .Setup(x => x.GetTicketAsync(9999))
+                .Setup(x => x.GetTicketAsync(9999,"user-123"))
                 .ReturnsAsync((Ticket?)null);
 
             //Act
